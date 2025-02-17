@@ -36,45 +36,45 @@ include { VOCAL_SUB } from '../subworkflows/local/sub_vocal'
 
 workflow VIRUSWARN_SC2 {
 
-ref_nt = Channel.fromPath( file("test/ref.fna", checkIfExists: true) )
+    ref_nt = Channel.fromPath( file("test/ref.fna", checkIfExists: true) )
 
-input_fasta = Channel.fromPath( file("${params.fasta}", checkIfExists: true) )
+    input_fasta = Channel.fromPath( file("${params.fasta}", checkIfExists: true) )
 
-if (params.year == 2022) {
-    log.info"INFO: VirusWarn-SC2 uses mutation, lineage and VOC/VOI/VUM information from November 2022"
-    mutation_table =  Channel.fromPath( file("data/2022-11/table_cov2_mutations_annotation.tsv", checkIfExists: true) )
-    ecdc =  Channel.fromPath( file("data/2022-11/ECDC_assigned_variants.csv", checkIfExists: true) )
-    lineages =  Channel.fromPath( file("data/2022-11/lineage.all.tsv", checkIfExists: true) )
-} else if (params.year == 2021) {
-    log.info"INFO: VirusWarn-SC2 uses mutation, lineage and VOC/VOI/VUM information from September 2021"
-    mutation_table =  Channel.fromPath( file("data/2021-09/table_cov2_mutations_annotation.tsv", checkIfExists: true) )
-    ecdc =  Channel.fromPath( file("data/2021-09/ECDC_assigned_variants.csv", checkIfExists: true) )
-    lineages =  Channel.fromPath( file("data/2021-09/lineage.all.tsv", checkIfExists: true) )
-} else {
-    exit 1,
-    "ERROR: $params.year is an invalid input for the parameter year!"
-}
+    if (params.year == 2022) {
+        log.info"INFO: VirusWarn-SC2 uses mutation, lineage and VOC/VOI/VUM information from November 2022"
+        mutation_table =  Channel.fromPath( file("data/2022-11/table_cov2_mutations_annotation.tsv", checkIfExists: true) )
+        ecdc =  Channel.fromPath( file("data/2022-11/ECDC_assigned_variants.csv", checkIfExists: true) )
+        lineages =  Channel.fromPath( file("data/2022-11/lineage.all.tsv", checkIfExists: true) )
+    } else if (params.year == 2021) {
+        log.info"INFO: VirusWarn-SC2 uses mutation, lineage and VOC/VOI/VUM information from September 2021"
+        mutation_table =  Channel.fromPath( file("data/2021-09/table_cov2_mutations_annotation.tsv", checkIfExists: true) )
+        ecdc =  Channel.fromPath( file("data/2021-09/ECDC_assigned_variants.csv", checkIfExists: true) )
+        lineages =  Channel.fromPath( file("data/2021-09/lineage.all.tsv", checkIfExists: true) )
+    } else {
+        exit 1,
+        "ERROR: $params.year is an invalid input for the parameter year!"
+    }
 
-if (params.metadata != '') {
-    metadata = Channel.fromPath( file("${params.metadata}", checkIfExists: true) )
-} else {
-    log.warn"WARNING! No metadata file was given. This can lead to problems, like not correctly identifying pink alerts!"
-    metadata = params.metadata
-}
+    if (params.metadata != '') {
+        metadata = Channel.fromPath( file("${params.metadata}", checkIfExists: true) )
+    } else {
+        log.warn"WARNING! No metadata file was given. This can lead to problems, like not correctly identifying pink alerts!"
+        metadata = params.metadata
+    }
 
-bloom =  Channel.fromPath( file("data/escape_data_bloom_lab.csv", checkIfExists: true) )
+    bloom =  Channel.fromPath( file("data/escape_data_bloom_lab.csv", checkIfExists: true) )
 
-vocal_version = Channel.fromPath( file(".version", checkIfExists: true) )
-db_version = Channel.fromPath( file("data/.db_version", checkIfExists: true) )
+    vocal_version = Channel.fromPath( file(".version", checkIfExists: true) )
+    db_version = Channel.fromPath( file("data/.db_version", checkIfExists: true) )
 
-email = Channel.fromPath( file("templates/email.html") )
-email_sum = Channel.fromPath( file("templates/email.sum.html") )
+    email = Channel.fromPath( file("templates/email.html") )
+    email_sum = Channel.fromPath( file("templates/email.sum.html") )
 
-VOCAL_SUB ( 
-    ref_nt, input_fasta, mutation_table, metadata,
-    ecdc, bloom, lineages, 
-    vocal_version, db_version, email, email_sum 
-)
+    VOCAL_SUB ( 
+        ref_nt, input_fasta, mutation_table, metadata,
+        ecdc, bloom, lineages, 
+        vocal_version, db_version, email, email_sum 
+    )
 
 }
 
@@ -99,7 +99,7 @@ def helpMSG() {
     Workflow: VirusWarn-SC2
 
     ${c_yellow}Usage examples:${c_reset}
-    nextflow run main.nf -profile conda,local --fasta 'test/sample-test.fasta'
+    nextflow run rki-mf1/viruswarn-sc2 -r <version> -profile conda,local --fasta 'test/sample-test.fasta'
 
     ${c_yellow}Input options:${c_reset}
     ${c_green} --fasta ${c_reset}           REQUIRED! Path to the input fasta file.
@@ -135,6 +135,7 @@ def helpMSG() {
     ${c_blue}Engines${c_reset} (choose one):
         conda
         mamba
+        docker
     """
 }
 
