@@ -1,5 +1,5 @@
 process VOCAL {
-    label 'vocal'
+    label 'biopython'
 
     publishDir "${params.output}/${params.vocal_dir}", mode: params.publish_dir_mode
 

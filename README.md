@@ -7,6 +7,11 @@
 <h3 align="center"> Mutation-Based Early Warning System to Prioritize Concerning SARS-CoV-2 Variants from Sequencing Data </h3>
 </div>
 
+[![Nextflow](https://img.shields.io/badge/nextflow%20DSL2-%E2%89%A522.10.1-23aa62.svg)](https://www.nextflow.io/)
+[![run with conda](https://img.shields.io/badge/run%20with-conda-3EB049?labelColor=000000&logo=anaconda)](https://docs.conda.io/en/latest/)
+[![run with docker](https://img.shields.io/badge/run%20with-docker-0db7ed?labelColor=000000&logo=docker)](https://www.docker.com/)
+[![run with singularity](https://img.shields.io/badge/run%20with-singularity-1d355c.svg?labelColor=000000)](https://sylabs.io/docs/)
+
 The goal of VirusWarn-SC2 is to detect SARS-CoV-2 emerging variants from collected bases of genomes, before their annotation by phylogenetic analysis.
 It does so by parsing SARS-CoV-2 genomes and detecting amino acids mutations in the spike proteins that can be associated with a phenotypic change. The phenotypic changes are annotated according to the knowledge accumulated on previous variants. Owing to the limited size of the genome, convergent evolution is expected to take place. 
 
@@ -27,16 +32,24 @@ For more information take a look at the VirusWarn-SC2 Documentation
 
 ## Quick Installation
 
-To run the pipeline, you need to have `conda` and `Nextflow` installed and set up.
-All other dependencies will be installed over `conda` in the pipeline.
+To run the pipeline, you need to have `Nextflow` and either `conda`, `Docker` or `Singularity`.
 
-To install `conda`, use the following bash commands if you are working on **Linux**:
+<details><summary><strong>Click!</strong> If you want to install <code>Nextflow</code> directly, you can use the following one-liner. </summary>
+
+```bash
+wget -qO- https://get.nextflow.io | bash
+```
+</details>
+
+<details><summary><strong>Click!</strong> If you want to set up <code>conda</code> to run the pipeline and install all other dependencies through it, you can use the following steps. </summary>
+
+Use the following bash commands if you are working on **Linux**:
 ```bash
 wget https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh
 bash Miniconda3-latest-Linux-x86_64.sh
 ```
 
-To install `conda`, use the following bash commands if you are working on **Mac**:
+Use the following bash commands if you are working on **Mac**:
 ```bash
 wget https://repo.anaconda.com/miniconda/Miniconda3-latest-MacOSX-arm64.sh
 bash Miniconda3-latest-MacOSX-arm64.sh
@@ -47,30 +60,44 @@ Then, `Nextflow` an be installed over `conda`:
 conda create -n nextflow -c bioconda nextflow
 conda activate nextflow
 ```
-
-The VOCAL repository can be cloned from Git:
-```bash
-git clone https://github.com/rki-mf1/VirusWarn-SC2.git
-```
+</details>
 
 ### Call help
 
 ```bash
-nextflow run main.nf --help
+nextflow run rki-mf1/viruswarn-sc2 -r <version> --help
 ```
 
 ## Running VOCAL
 
+With a `conda`, please run:
+
 ```bash
-nextflow run main.nf  \
+nextflow run rki-mf1/viruswarn-sc2 -r <version> \
      -profile conda,local \
+     --fasta 'test/sample-test.fasta'
+```
+
+With a `Docker`, please run:
+
+```bash
+nextflow run rki-mf1/viruswarn-sc2 -r <version> \
+     -profile docker,local \
+     --fasta 'test/sample-test.fasta'
+```
+
+With a `Singularity`, please run:
+
+```bash
+nextflow run rki-mf1/viruswarn-sc2 -r <version> \
+     -profile singularity,local \
      --fasta 'test/sample-test.fasta'
 ```
 
 ### With metadata file
 
 ```bash
-nextflow run main.nf  \
+nextflow run rki-mf1/viruswarn-sc2 -r <version> \
      -profile conda,local \
      --fasta 'test/sample-test.fasta' \
      --metadata 'test/meta.tsv' \
@@ -86,7 +113,7 @@ nextflow run main.nf  \
 🐌 **Slow?**: The alignment option in VOCAL uses a biopython pairwise aligner and can be relatively slow. It is thus recommended to first generate an alignment file of all the sequences before running VOCAL annotation of the mutations. The alignment file (in PSL format) can be created using the tool `pblat` by adding the option `--psl`.
 
 ```bash
-nextflow run main.nf  \
+nextflow run rki-mf1/viruswarn-sc2 -r <version> \
      -profile conda,local \
      --fasta 'test/sample-test.fasta' \
      --psl

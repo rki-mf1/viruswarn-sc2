@@ -1,5 +1,5 @@
 process ANNOTATION {
-    label 'annotation'
+    label 'biopython'
 
     publishDir "${params.output}/${params.annot_dir}", mode: params.publish_dir_mode
 
