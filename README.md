@@ -1,4 +1,4 @@
-⚠️**PLEASE NOTE**: This tool was called **VOCAL (Variant Of Concern ALert and prioritization)** before!
+⚠️**PLEASE NOTE**: This tool was called **VOCAL (Variant Of Concern ALert and prioritization)** before! Some errors in the naming may subsist in the documentation. Feel free to submit an [issue](https://github.com/rki-mf1/VirusWarn-SC2/issues). 
 
 <div id="top"></div>
 
@@ -68,7 +68,7 @@ conda activate nextflow
 nextflow run rki-mf1/viruswarn-sc2 -r <version> --help
 ```
 
-## Running VOCAL
+## Running VirusWarn-SC2
 
 With a `conda`, please run:
 
@@ -157,8 +157,7 @@ Please feel free to contact us!
 
 # Acknowledgments
 
-* Original Idea: SC2 Evolution Working group - M. von Kleist, S. Clavignac-Spencer
-
+* Original Idea: SC2 Evolution Working group 
 * Funding: Supported by the European Centers for Disease Control [grant number ECDC GRANT/2021/008 ECD.12222].
 
 
