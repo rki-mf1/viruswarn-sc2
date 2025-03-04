@@ -5,7 +5,7 @@ Annotate a set of variants
 
 @hrichard
 """
-from data_loader_tmp import get_aa_dict, get_codon_dict, codons_stop, AASTOP, mutation_pattern
+from data_loader_tmp import get_aa_dict, codons_stop, AASTOP, mutation_pattern
 
 import pandas as pd
 import numpy as np

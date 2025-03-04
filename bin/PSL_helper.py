@@ -8,7 +8,7 @@ Functions to process PSL alignments fieldnames
 
 from Bio import SeqIO
 import pandas as pd
-from data_loader_tmp import DF_SPIKE_ROI, GAP_CHAR
+from data_loader_tmp import GAP_CHAR
 
 
 PSL_LABELS = ['Matches', 'Mismatches', 'RepMatch', 'Ns', 'QGapCount',

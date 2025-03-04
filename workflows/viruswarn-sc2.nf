@@ -9,7 +9,7 @@ if (params.help) { exit 0, helpMSG() }
 
 // Parameters sanity checking
 Set valid_params = ['cores', 'max_cores', 'memory', 'help',
-                    'fasta', 'metadata', 'year', 'psl', 'strict', 
+                    'fasta', 'metadata', 'year', 'psl', 'covsonar', 'strict', 
                     'output', 'preprocess_dir', 'vocal_dir', 
                     'annot_dir', 'report_dir', 'runinfo_dir',
                     'publish_dir_mode', 'conda_cache_dir', 'singularity_cache_dir',
@@ -38,7 +38,7 @@ workflow VIRUSWARN_SC2 {
 
     ref_nt = Channel.fromPath( file("test/ref.fna", checkIfExists: true) )
 
-    input_fasta = Channel.fromPath( file("${params.fasta}", checkIfExists: true) )
+    input = Channel.fromPath( file("${params.fasta}", checkIfExists: true) )
 
     if (params.year == 2022) {
         log.info"INFO: VirusWarn-SC2 uses mutation, lineage and VOC/VOI/VUM information from November 2022"
@@ -62,7 +62,7 @@ workflow VIRUSWARN_SC2 {
         metadata = params.metadata
     }
 
-    bloom =  Channel.fromPath( file("data/escape_data_bloom_lab.csv", checkIfExists: true) )
+    bloom = Channel.fromPath( file("data/escape_data_bloom_lab.csv", checkIfExists: true) )
 
     vocal_version = Channel.fromPath( file(".version", checkIfExists: true) )
     db_version = Channel.fromPath( file("data/.db_version", checkIfExists: true) )
@@ -71,7 +71,7 @@ workflow VIRUSWARN_SC2 {
     email_sum = Channel.fromPath( file("templates/email.sum.html") )
 
     VOCAL_SUB ( 
-        ref_nt, input_fasta, mutation_table, metadata,
+        ref_nt, input, mutation_table, metadata,
         ecdc, bloom, lineages, 
         vocal_version, db_version, email, email_sum 
     )
@@ -99,10 +99,10 @@ def helpMSG() {
     Workflow: VirusWarn-SC2
 
     ${c_yellow}Usage examples:${c_reset}
-    nextflow run rki-mf1/viruswarn-sc2 -r <version> -profile conda,local --fasta 'test/sample-test.fasta'
+    nextflow run rki-mf1/viruswarn-sc2 -r <version> -profile conda,local --input 'test/sample-test.fasta'
 
     ${c_yellow}Input options:${c_reset}
-    ${c_green} --fasta ${c_reset}           REQUIRED! Path to the input fasta file.
+    ${c_green} --fasta ${c_reset}           REQUIRED! Path to the input file. Fasta file (or covSonar csv).
                         [ default: $params.fasta ]
     ${c_green} --metadata ${c_reset}        Path to the metadata file.
                         [ default: $params.metadata ]
@@ -111,6 +111,8 @@ def helpMSG() {
                         [ default: $params.year ]
     ${c_green} --psl ${c_reset}             Run process with pblat alignment.
                         [ default: $params.psl ]
+    ${c_green} --covsonar ${c_reset}        Input file is not a fasta file but a csv file from covsonar.
+                        [ default: $params.covsonar ]
     ${c_green} --strict ${c_reset}          Run process with strict alert levels (without orange).
                         [ default: $params.strict ]
 
