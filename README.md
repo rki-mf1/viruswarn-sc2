@@ -1,4 +1,4 @@
-⚠️**PLEASE NOTE**: This tool was called **VOCAL (Variant Of Concern ALert and prioritization)** before! Some errors in the naming may subsist in the documentation. Feel free to submit an [issue](https://github.com/rki-mf1/VirusWarn-SC2/issues). 
+⚠️**PLEASE NOTE**: This tool was called **VOCAL (Variant Of Concern ALert and prioritization)** before! Some errors in the naming may subsist in the documentation. Feel free to submit an [issue](https://github.com/rki-mf1/viruswarn-sc2/issues). 
 
 <div id="top"></div>
 
@@ -62,6 +62,12 @@ conda activate nextflow
 ```
 </details>
 
+### Get / Update VirusWarn-SC2
+
+```bash
+nextflow pull rki-mf1/viruswarn-sc2
+```
+
 ### Call help
 
 ```bash
@@ -118,13 +124,25 @@ nextflow run rki-mf1/viruswarn-sc2 -r <version> \
      --fasta 'test/sample-test.fasta' \
      --psl
 ```
+
 ⚠️ **Note**: When `VirusWarn-SC2` is run without option `--psl`, it realigns each query sequence to the reference sequence Wuhan NC_045512 using the pairwise alignment function in the biopython library.
+
+### With covSonar
+
+You can also build a [covSonar](https://github.com/rki-mf1/covsonar) database with your sequences. Then you generate a csv file with the `match` command. The csv file is a valid input for VirusWarn-SC2 and allows to completely skip the alignment step.
+
+```bash
+nextflow run rki-mf1/viruswarn-sc2 -r <version> \
+     -profile conda,local \
+     --fasta 'test/covsonar.csv' --year 2021 \
+     --covsonar
+```
 
 
 ## Parameter list
 
 ```
-fasta                    REQUIRED! The path to the fasta file with the sequences for VirusWarn-SC2.
+fasta                    REQUIRED! Path to the input file. Fasta file (or covSonar csv).
                          [ default: '' ]
 metadata                 The path to a metadate file for the sequences.
                          [ default: '' ]
@@ -132,6 +150,8 @@ year                     Specify the year from which the information should
                          be used for the ranking.
                          [ default: 2022 ]
 psl                      Run process with pblat alignment.
+                         [ default: false ]
+covsonar                 Input file is not a fasta file but a csv file from covsonar.
                          [ default: false ]
 strict                   Run process with strict alert levels (without orange).
                          [ default: 'n' ]
@@ -148,9 +168,11 @@ VirusWarn-SC2 output an alert level in four different colours which can be class
 | Orange | Variant contains moderately muations, or also possibly consider them either VUM or De-escalated variant.   | MODERATE |
 | Grey | Near-zero mutation size for MOC or ROI or either no MOC or no ROI.     | LOW |
 
+Examples for the HTML report can be found in the folder [`example`](example/).
+
 # Contact
 
-Did you find a bug? 🐛 Suggestion/Feedback/Feature request? 👨‍💻 Please visit [GitHub Issues](https://github.com/rki-mf1/VirusWarn-SC2/issues)
+Did you find a bug? 🐛 Suggestion/Feedback/Feature request? 👨‍💻 Please visit [GitHub Issues](https://github.com/rki-mf1/viruswarn-sc2/issues)
 
 For business inquiries or professional support requests 🍺 
 Please feel free to contact us!

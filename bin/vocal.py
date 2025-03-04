@@ -14,7 +14,6 @@ from Bio import SeqIO
 from Bio import pairwise2
 import pandas as pd
 import time
-import warnings
 
 from data_loader_tmp import S_PROTEIN,REFSEQ, GAP_CHAR,D_GENEPOS
 

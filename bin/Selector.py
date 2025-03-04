@@ -1,16 +1,15 @@
 #!/usr/bin/env python
 
 import argparse as ap
-from operator import index
 import timeit as ti
 import sys
 import os
 import datetime
 import pandas as pd
-from Mutations2Function import aggregateMutationTable, merge_variants_annotation
 import re
 import numpy as np
-from os import getpid
+
+from Mutations2Function import aggregateMutationTable, merge_variants_annotation
 from multiprocessing import Pool
 from utils.utility import ROOT_DIR, S_proteinseq
 
@@ -213,7 +212,7 @@ def main_covSonar(args):
     df_agg_annot = aggregateMutationTable(df_annot)
 
     # check input
-    df_variants = pd.read_csv(covSonar_output, sep="\t")
+    df_variants = pd.read_csv(covSonar_output, sep=",")
     want_to_join = df_variants[["accession", "lineage"]]
     ## Start to clear format
 
