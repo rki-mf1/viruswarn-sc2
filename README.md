@@ -25,6 +25,10 @@ For more information take a look at the VirusWarn-SC2 Documentation
 
 <a href="https://rki-mf1.github.io/vocal-doc/"><strong>Explore »</strong></a>
 
+Check out the Video Tutorial
+
+<a href="https://youtu.be/dmnumPHPrxE"><strong>Take a look »</strong></a>
+
 
 # Getting Started
 
