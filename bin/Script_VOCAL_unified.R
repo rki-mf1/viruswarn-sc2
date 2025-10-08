@@ -606,13 +606,15 @@ alerts_with_clusters_ID <- if (nrow(alert_level_groups_with_clusters) == 0) {
     rename(cluster_ID_in_alert_level = cluster_ID)
 }
 
-vocal_list_samples_with_alert = suppressMessages(var_pheno_summary_wide_with_alert %>%
+vocal_list_samples_with_alert = suppressMessages(
+  var_pheno_summary_wide_with_alert %>%
   left_join(alerts_with_clusters_ID) %>%
   arrange(desc(alert_level),
           desc(s_moc_roi_tot),
           desc(cluster_size),
           desc(DATE_COL))
-  )
+)
+
 ########### Output goes Here ###########
 log_debug("Write Results")
 
@@ -680,7 +682,7 @@ vocal_list_clusters_properties_with_mutations = suppressMessages(vocal_common_mu
 )
 write_csv(
   vocal_list_clusters_properties_with_mutations,
-  file = file.path("vocal-alerts-clusters-summaries-all.csv")
+  file = file.path(args$vocal_alert_clusters)
 )
 
 error_log_outputFile <- file.path("R-error-output.txt")
@@ -711,7 +713,9 @@ tryCatch({
         s_pm_M,
         s_pm_D,
         s_pm_I,
-        starts_with("ListMutationsSelected"),
+        #starts_with("ListMutationsSelected"),
+        ListMutationsSelected_M,
+        ListMutationsSelected_D,
         all_of(LINEAGE_COL),
         any_of("LINEAGE.LATEST"),
         all_of(VARIANT_CLASS_COL),
@@ -733,7 +737,7 @@ tryCatch({
     ))
   
   write_csv(vocal_samples_out,
-            file = file.path("vocal-alerts-samples-all.csv"))
+            file = file.path(args$vocal_alert_samples))
 },
 error = function(e) {
   cat(
