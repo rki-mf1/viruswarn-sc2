@@ -1,5 +1,6 @@
 ⚠️**PLEASE NOTE**: This tool was called **VOCAL (Variant Of Concern ALert and prioritization)** before! Some errors in the naming may subsist in the documentation. Feel free to submit an [issue](https://github.com/rki-mf1/viruswarn-sc2/issues). 
 
+
 <div id="top"></div>
 
 <div align="center">
@@ -14,6 +15,23 @@
 
 The goal of VirusWarn-SC2 is to detect SARS-CoV-2 emerging variants from collected bases of genomes, before their annotation by phylogenetic analysis.
 It does so by parsing SARS-CoV-2 genomes and detecting amino acids mutations in the spike proteins that can be associated with a phenotypic change. The phenotypic changes are annotated according to the knowledge accumulated on previous variants. Owing to the limited size of the genome, convergent evolution is expected to take place. 
+
+
+- [Documentation](#documentation)
+- [Getting Started](#getting-started)
+  - [Quick Installation](#quick-installation)
+  - [Get / Update VirusWarn-SC2](#get--update-viruswarn-sc2)
+  - [Call help](#call-help)
+- [Running VirusWarn-SC2](#running-viruswarn-sc2)
+  - [With metadata file](#with-metadata-file)
+  - [With pblat](#with-pblat)
+  - [With covSonar](#with-covsonar)
+- [Parameter List](#parameter-list)
+- [How To Interpret Results](#how-to-interpret-results)
+- [Citations](#citations)
+- [Contact](#contact)
+- [Acknowledgements](#acknowledgements)
+
 
 # Documentation
 
@@ -66,26 +84,27 @@ conda activate nextflow
 ```
 </details>
 
-### Get / Update VirusWarn-SC2
+## Get / Update VirusWarn-SC2
 
 ```bash
 nextflow pull rki-mf1/viruswarn-sc2
 ```
 
-### Call help
+## Call help
 
 ```bash
 nextflow run rki-mf1/viruswarn-sc2 -r <version> --help
 ```
 
-## Running VirusWarn-SC2
+
+# Running VirusWarn-SC2
 
 With a `conda`, please run:
 
 ```bash
 nextflow run rki-mf1/viruswarn-sc2 -r <version> \
      -profile conda,local \
-     --fasta 'test/sample-test.fasta'
+     --input 'test/sample-test.fasta' --data 2021 
 ```
 
 With a `Docker`, please run:
@@ -93,7 +112,7 @@ With a `Docker`, please run:
 ```bash
 nextflow run rki-mf1/viruswarn-sc2 -r <version> \
      -profile docker,local \
-     --fasta 'test/sample-test.fasta'
+     --input 'test/sample-test.fasta' --data 2021 
 ```
 
 With a `Singularity`, please run:
@@ -101,87 +120,107 @@ With a `Singularity`, please run:
 ```bash
 nextflow run rki-mf1/viruswarn-sc2 -r <version> \
      -profile singularity,local \
-     --fasta 'test/sample-test.fasta'
+     --input 'test/sample-test.fasta' --data 2021 
 ```
 
-### With metadata file
+## With metadata file
 
 ```bash
 nextflow run rki-mf1/viruswarn-sc2 -r <version> \
      -profile conda,local \
-     --fasta 'test/sample-test.fasta' \
-     --metadata 'test/meta.tsv' \
-     --psl
+     --input 'test/sample-test.fasta' --data 2021 \
+     --metadata 'test/meta.tsv' 
 ```
 
-⚠️ **Note**: Metadata must have the following information at least
-* ID column (match with sample ID in FASTA file)
-* LINEAGE column (e.g., B.1.1.7, BA.1)
+⚠️ **Note**: Metadata must include the columns **ID**, **SAMPLING_DATE** and **LINEAGE** at least. For an example, refer to the file [`meta_minimal.tsv`](test/meta_minimal.tsv).
+* ID column: Match with sample ID in FASTA file
+* SAMPLING_DATE column: In format YYYY-MM-DD
+* LINEAGE column: e.g., B.1.1.7, BA.1
 
-### With pblat
+
+## With pblat
 
 🐌 **Slow?**: The alignment option in VOCAL uses a biopython pairwise aligner and can be relatively slow. It is thus recommended to first generate an alignment file of all the sequences before running VOCAL annotation of the mutations. The alignment file (in PSL format) can be created using the tool `pblat` by adding the option `--psl`.
 
 ```bash
 nextflow run rki-mf1/viruswarn-sc2 -r <version> \
      -profile conda,local \
-     --fasta 'test/sample-test.fasta' \
+     --input 'test/sample-test.fasta' --data 2021 \
      --psl
 ```
 
-⚠️ **Note**: When `VirusWarn-SC2` is run without option `--psl`, it realigns each query sequence to the reference sequence Wuhan NC_045512 using the pairwise alignment function in the biopython library.
+⚠️ **Note**: When `VirusWarn-SC2` is run without the option `--psl`, it realigns each query sequence to the reference sequence Wuhan-Hu-1 NC_045512.2 using the pairwise alignment function in the biopython library.
 
-### With covSonar
+## With covSonar
 
 You can also build a [covSonar](https://github.com/rki-mf1/covsonar) database with your sequences. Then you generate a csv file with the `match` command. The csv file is a valid input for VirusWarn-SC2 and allows to completely skip the alignment step.
+
+VirusWarn-SC2 automatically uses the input file also as metadata file if the option `--covsonar` is given.
 
 ```bash
 nextflow run rki-mf1/viruswarn-sc2 -r <version> \
      -profile conda,local \
-     --fasta 'test/covsonar.csv' --year 2021 \
+     --input 'test/covsonar.csv' --data 2021 \
      --covsonar
 ```
 
 
-## Parameter list
+# Parameter List
 
 ```
-fasta                    REQUIRED! Path to the input file. Fasta file (or covSonar csv).
+input                    REQUIRED! Path to the input file. Fasta file or covSonar csv, which 
+                         needs to be specified with the parameter covsonar.
                          [ default: '' ]
 metadata                 The path to a metadate file for the sequences.
                          [ default: '' ]
-year                     Specify the year from which the information should 
-                         be used for the ranking.
+data                     Specify the year from which the information should be used for
+                         the ranking. The options are 2021, 2022 and 2025.
+                         Alternatively, a path to a personal dataset can be entered. Please make 
+                         sure a table_cov2_mutations_annotation.tsv, assigned_variants.csv and 
+                         lineage.all.tsv are present.
                          [ default: 2022 ]
-psl                      Run process with pblat alignment.
+psl                      RECOMMENDED FOR FAST PROCESSING! Run process with pblat alignment.
                          [ default: false ]
 covsonar                 Input file is not a fasta file but a csv file from covsonar.
                          [ default: false ]
 strict                   Run process with strict alert levels (without orange).
                          [ default: 'n' ]
+output                   Path / Name of the result folder.
+                         [ default: 'results']
 ```
 
-# How to interprete result.
+
+# How To Interpret Results
 
 VirusWarn-SC2 output an alert level in four different colours which can be classified into 3 ratings.
 
-| Alert color      | Description | Impact | 
-| ----------- | ----------- | ----------- |
-| Pink | Variant is known as VOC/VOI and containing MOC or new mutations.   | HIGH |
-| Red | Not VOC/VOI but contain high MOC or ROI, and a new matuation (likely to cause a problem/ new dangerous).  | HIGH |
-| Orange | Variant contains moderately muations, or also possibly consider them either VUM or De-escalated variant.   | MODERATE |
-| Grey | Near-zero mutation size for MOC or ROI or either no MOC or no ROI.     | LOW |
+| Alert color | Description                                                                                              | Impact   | 
+| ----------- | -------------------------------------------------------------------------------------------------------- | -------- |
+| Pink        | Variant is known as VOC/VOI and containing MOC or new mutations.                                         | HIGH     |
+| Red         | Not VOC/VOI but contain high MOC or ROI, and a new matuation (likely to cause a problem/ new dangerous). | HIGH     |
+| Orange      | Variant contains moderately muations, or also possibly consider them either VUM or De-escalated variant. | MODERATE |
+| Grey        | Near-zero mutation size for MOC or ROI or either no MOC or no ROI.                                       | LOW      |
 
 Examples for the HTML report can be found in the folder [`example`](example/).
 
+
+# Citations
+
+If you use `VirusWarn` in your work, please consider citing our publication:
+
+> Kirschbaum C, Kongkitimanon K, Frank S, Hölzer M, Paraskevopoulou S, Richard H. VirusWarn: A mutation-based early warning system to prioritize concerning SARS-CoV-2 and influenza virus variants from sequencing data. Comput Struct Biotechnol J. 2025 Mar 12;27:1081-1088. doi: 10.1016/j.csbj.2025.03.010. PMID: 40177126; PMCID: PMC11964653.
+
+
 # Contact
 
-Did you find a bug? 🐛 Suggestion/Feedback/Feature request? 👨‍💻 Please visit [GitHub Issues](https://github.com/rki-mf1/viruswarn-sc2/issues)
+Did you find a bug? 🐛 Suggestion / Feedback / Feature request? 👨‍💻
+Please visit [GitHub Issues](https://github.com/rki-mf1/viruswarn-sc2/issues)
 
 For business inquiries or professional support requests 🍺 
 Please feel free to contact us!
 
-# Acknowledgments
+
+# Acknowledgements
 
 * Original Idea: SC2 Evolution Working group 
 * Funding: Supported by the European Centers for Disease Control [grant number ECDC GRANT/2021/008 ECD.12222].
