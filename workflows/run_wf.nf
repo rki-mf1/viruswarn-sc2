@@ -1,17 +1,17 @@
-include { PREPROCESS }      from '../../modules/local/preprocess'
-include { VOCAL }           from '../../modules/local/vocal'
-include { PSL }             from '../../modules/local/psl'
-include { ANNOTATION }      from '../../modules/local/annotation'
-include { COVSONAR }        from '../../modules/local/covsonar'
-include { REPORT }          from '../../modules/local/report'
+include { PREPROCESS }      from '../modules/local/preprocess'
+include { VOCAL }           from '../modules/local/vocal'
+include { PSL }             from '../modules/local/psl'
+include { ANNOTATION }      from '../modules/local/annotation'
+include { COVSONAR }        from '../modules/local/covsonar'
+include { REPORT }          from '../modules/local/report'
 
-workflow VOCAL_SUB {
+workflow RUN {
     take:
         ref_nt
         input
         mutation_table
         metadata
-        ecdc
+        variants
         bloom
         lineages
         vocal_version
@@ -40,7 +40,7 @@ workflow VOCAL_SUB {
         annot = (params.covsonar) ? COVSONAR.out.variants_with_phenotypes : ANNOTATION.out.variants_with_phenotypes 
 
         REPORT ( 
-            annot, ecdc, bloom, lineages, 
+            annot, variants, bloom, lineages, 
             vocal_version, db_version, email, email_sum, meta
         )
 

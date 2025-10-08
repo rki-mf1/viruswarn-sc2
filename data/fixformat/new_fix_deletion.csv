@@ -1,4 +1,4 @@
-amino acid,nucleotide,ID,consonar_aa_patern,vocal_format,Note
+amino acid,nucleotide,ID,covsonar_aa_pattern,vocal_format,Note
 SGF3675-3677del,del:11288:9,B.1.1.7,,SGF3675-3677del,ORF1a (should we include other gene region?))
 HV69-70del,del:21765:6,B.1.1.7,S:del:68:3,HV69-70del,
 Y144-144del,del:21991:3,B.1.1.7,S:del:143:2,Y144-144del,
