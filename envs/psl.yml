@@ -3,7 +3,7 @@ channels:
   - conda-forge
   - bioconda
 dependencies:
-  - pblat=2.5
-  - python=3.9.7
-  - biopython=1.79
-  - pandas=1.5.3
+  - pblat=2.5.1
+  - python=3.13.5
+  - biopython=1.85
+  - pandas=2.3.0

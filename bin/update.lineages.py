@@ -1,7 +1,9 @@
 #!/usr/bin/python
+
 # Maintainer: KongkitimanonK
 # The method originally came from https://github.com/cov-lineages/pango-designation.
-# We just adapt and change some parts to be used in covSonar and VOCAL.
+# We just adapt and change some parts to be used in covSonar and VirusWarn-SC2 (former VOCAL).
+
 import os
 import sys
 import pandas as pd
@@ -11,8 +13,6 @@ from tempfile import  mkdtemp
 import json
 import requests
 import shutil
-from utils.utility import update_version, get_current_date, ROOT_DIR
-
 
 class Aliasor:
     def __init__(self, alias_file):
@@ -33,29 +33,28 @@ class Aliasor:
 
     def compress(self, name):
         name_split = name.split(".")
-        # print(name_split)
+
         if len(name_split) < 5:
             return name
+        
         letter = self.realias_dict[".".join(name_split[0:4])]
+
         if len(name_split) == 5:
-            # print('len5:'+letter + '.' + name_split[4])
             return letter + "." + name_split[4]
         else:
-            # print('len6:'+letter + '.' + ".".join(name_split[4:]))
             return letter + "." + ".".join(name_split[4:])
 
     def uncompress(self, name):
         name_split = name.split(".")
-        # print(name_split)
         letter = name_split[0]
         unaliased = self.alias_dict[letter]
+
         if len(name_split) == 1:
             return name
+        
         if len(name_split) == 2:
-            # print('len2:'+unaliased + '.' + name_split[1])
             return unaliased + "." + name_split[1]
         else:
-            # print('len3:'+unaliased + '.' + ".".join(name_split[1:]))
             return unaliased + "." + ".".join(name_split[1:])
 
 
@@ -70,19 +69,21 @@ def lts(lineage):
 def download_source(tmp_dir):
     lineages_url = "https://raw.githubusercontent.com/cov-lineages/pango-designation/master/lineages.csv"
     alias_key_url = "https://raw.githubusercontent.com/cov-lineages/pango-designation/master/pango_designation/alias_key.json"
-    lineag = os.path.join(tmp_dir, "lineags.csv")
+    lineage = os.path.join(tmp_dir, "lineages.csv")
     alias_key = os.path.join(tmp_dir, "alias_key.json")
-    print("Download lineags")
+
+    print("Download lineages from Git Repo pango-designation")
     url_content = requests.get(lineages_url).content
-    csv_file = open(lineag, "wb")
+    csv_file = open(lineage, "wb")
     csv_file.write(url_content)
     csv_file.close()
+
     print("Download alias_key")
     items = requests.get(alias_key_url)
     data = items.json()
     with open(alias_key, "w") as f:
         json.dump(data, f)
-    return alias_key, lineag
+    return alias_key, lineage
 
 
 def process_lineage(alias_key_path, lineages_path, output):
@@ -103,7 +104,7 @@ def process_lineage(alias_key_path, lineages_path, output):
     aliasor = Aliasor(alias_key_path)
     df_lineages = pd.read_csv(lineages_path)
     lineages = df_lineages.lineage.unique()
-    #%%
+
     uncompressed_lineages = []
     sorted_lineages = []
     print("Calculate parent-child relationship")
@@ -112,7 +113,7 @@ def process_lineage(alias_key_path, lineages_path, output):
     uncompressed_lineages.sort(key=lts)
     for ch in map(aliasor.compress, uncompressed_lineages):
         sorted_lineages.append(ch)
-    #%%
+
     print("To output")
     df = pd.DataFrame()
     for _id in lineages:
@@ -126,19 +127,10 @@ def process_lineage(alias_key_path, lineages_path, output):
 
         sub_lineage_list = list(filter((_id).__ne__, sub_lineage_list))
         if len(sub_lineage_list):
-            df = df.append(
-                {"lineage": _id, "sublineage": ",".join(sub_lineage_list)},
-                ignore_index=True,
-            )
+            df = pd.concat([df, pd.DataFrame.from_records([{ "lineage": _id, "sublineage": ",".join(sub_lineage_list) }])], ignore_index=True)
         else:
-            df = df.append({"lineage": _id, "sublineage": "none"}, ignore_index=True)
+            df = pd.concat([df, pd.DataFrame.from_records([{ "lineage": _id, "sublineage": "none" }])], ignore_index=True)
     df.to_csv(output, sep="\t", index=False)
-
-    # update_version()
-    version_file = os.path.join(ROOT_DIR, "data/.version")
-    update_version(
-        "Lineage and sublineage relationship", get_current_date(), version_file
-    )
 
 
 def main(args):
@@ -159,7 +151,7 @@ if __name__ == "__main__":
     today = datetime.date.today().strftime("%Y-%m-%d")
     parser = argparse.ArgumentParser(
         description="This script is used for creating a lineage/sublineage relationship file.(https://github.com/cov-lineages/pango-designation)",
-        epilog=""" Usage example: \n python Lineages.UPDATER.py --online """,
+        epilog=""" Usage example: \n python3 update.lineages.py --online """,
         formatter_class=argparse.ArgumentDefaultsHelpFormatter,
     )
     parser.add_argument(
@@ -187,8 +179,8 @@ if __name__ == "__main__":
     )
     args = parser.parse_args()
     if len(sys.argv) == 1:
-        print('Usage example: python update.lineages.py -l lineags.csv -a alias_key.json -o lineages.all.tsv')
-        print('python update.lineages.py --online')
-        print('python update.lineages.py -h')
+        print('Usage example: python3 update.lineages.py -l lineags.csv -a alias_key.json -o lineages.all.tsv')
+        print('python3 update.lineages.py --online')
+        print('python3 update.lineages.py -h')
     else:
         main(args)

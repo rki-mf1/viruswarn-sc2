@@ -574,7 +574,7 @@ $(document).ready(function() {
                      <th><b>Sample Size</b></th>
                   </tr>
                </thead>
-               {% for i, cell in _samples.groupby(['alert_level']).size().iteritems() %}
+               {% for i, cell in _samples.groupby(['alert_level']).size().items() %}
                <tr>
                   <td>{{ i }}</td>
                   <td>{{ cell }}</td>
@@ -592,7 +592,7 @@ $(document).ready(function() {
                      <th><b>Cluster Size</b></th>
                   </tr>
                </thead>
-               {% for i, cell in _clusters_df.groupby(['alert_level']).size().iteritems() %}
+               {% for i, cell in _clusters_df.groupby(['alert_level']).size().items() %}
                <tr>
                   <td>{{ i }}</td>
                   <td>{{ cell }}</td>

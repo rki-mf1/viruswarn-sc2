@@ -18,7 +18,7 @@ deletion_df = pd.read_csv(
     os.path.join(ROOT_DIR, "data/fixformat/new_fix_deletion.csv"), header=0
 )
 deletion_df = deletion_df.drop(deletion_df[deletion_df.vocal_format == "?"].index)
-deletion_df["consonar_aa_patern"] = deletion_df["consonar_aa_patern"].str.strip()
+deletion_df["covsonar_aa_pattern"] = deletion_df["covsonar_aa_pattern"].str.strip()
 
 
 def is_file_empty(file_path):
@@ -166,7 +166,7 @@ def deletion_fixAAformat(aa_pattern, lineage):
     # pattern = nt_pattern.split(' ')
     # skip ? #
     result = deletion_df[
-        (deletion_df["consonar_aa_patern"].str.contains(aa_pattern))
+        (deletion_df["covsonar_aa_pattern"].str.contains(aa_pattern))
         & (deletion_df["ID"] == lineage.strip())
     ]
 
@@ -178,9 +178,12 @@ def deletion_fixAAformat(aa_pattern, lineage):
         # print('New format:',result['vocal_format'].values[0])
         return result["vocal_format"].values[0]
 
-
+## This list comprehension was added due to the following warning:
+## FutureWarning: 'DataFrame.swapaxes' is deprecated and will be removed in a future version. Please use 'DataFrame.transpose' instead.
+## np.split() and np.array_split() use the deprecated swapaxes function and it won't be fixed as I read in the GitHub Issues for numpy.
+## Therefore, it needs to be used on the index of the dataframe.
 def parallelize_dataframe(df, func, num_cores):
-    _tmp_lis = np.array_split(df, num_cores)
+    _tmp_lis = [df.loc[chunk_idx] for chunk_idx in np.array_split(df.index, num_cores)]
 
     # with Pool(processes=num_cores) as pool:
     #    res = pool.starmap(func, zip_items)
@@ -232,7 +235,7 @@ def main_covSonar(args):
     b["target_gene"] = b["aa_profile"].str.split(":").str[0]
     b = b[b["target_gene"] == "S"]  ## only S gene
     b.reset_index(drop=True, inplace=True)
-    b["aa_profile"] = b["aa_profile"].str.split(":", 1).str[1]
+    b["aa_profile"] = b["aa_profile"].str.split(":", n=1).str[1]
     b = b.merge(want_to_join, on="accession")
 
     _new_df = parallelize_dataframe(b, fix_format, num_cores)
@@ -297,8 +300,8 @@ if __name__ == "__main__":
         "-o",
         "--output",
         required=True,
-        default="variants_with_phenotype_sc2-global.tsv",
-        help="Output file  (e.g., variants_with_phenotype_sc2-global.tsv)",
+        default="variants_with_phenotypes.tsv",
+        help="Output file  (e.g., variants_with_phenotypes.tsv)",
     )
     parser_select_covsonar.add_argument(
         "--cpus",
