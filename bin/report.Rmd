@@ -1,0 +1,896 @@
+---
+title: "Report VirusWarn-SC2 `r Sys.Date()`"
+author: "VirusWarn"
+date: "`r Sys.Date()`"
+output: 
+  html_document:
+    toc: true
+    toc_depth: 2
+    toc_float: true
+params:
+  input: ""
+  metadata: ""
+  clusters: "vocal-alerts-clusters-summaries-all.csv"
+  alert_samples: "vocal-alerts-samples-all.csv"
+  moc: ""
+  strict: "n"
+  data: ""
+  version: ""
+---
+
+<style>
+  body .main-container {
+      max-width: 1600px;
+  }
+</style>
+
+
+#### **List of Abbrevations**
+
+Sequences are sent to a category (Pink, Red, Orange, Grey) according to their mutation profile. 
+VirusWarn counts the amount of mutations in 3 categories:
+
+**MOC - Mutation of Concern**
+
+Those are mutations that have been identified previously as changing the potential of the virus. 
+The table of all MOC is at the bottom in the [MOC table](#item-moc).
+
+**ROI - Region of Interest**
+
+Those are important regions of the gene like for example Antigenic sites or Receptor-binding sites. 
+The table of all ROI is at the bottom in the [ROI table](#item-roi).
+
+**PM - Private Mutation**
+
+Mutations that are neither a MOC nor a ROI.
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(include = TRUE)
+```
+
+```{r import, include=FALSE}
+library(tidyverse)
+library(dplyr)
+library(stringr)
+library(stringi)
+library(lubridate)
+library(tools)
+
+library(seqinr)
+
+library(ggplot2)
+library(plotly)
+
+library(DT)
+```
+
+
+```{r var, include=FALSE}
+spike_len <- 1273
+
+undefined <- c(
+  'UNASSIGNED', 'Unassigned', 'unassigned', 
+  'NONE', 'None', 'none', 
+  'OTHER', 'Other', 'other'
+)
+```
+
+```{r functions clusters, include=FALSE}
+make_table_clusters <- function(clusters, color){
+  clusters <- clusters %>%
+    filter(alert_level == color) %>%
+    select(
+      n_samples, Lineages, s_moc_M.avg, s_moc_D.avg, s_roi_M.avg, s_roi_D.avg, 
+      ListFrequentMutations_gt30perc, cluster_ID_in_alert_level
+    ) %>%
+    `colnames<-`(c("Samples", "Lineages", "MOC Sub Avg", "MOC Del Avg", "ROI Sub Avg", "ROI Del Avg", "Frequent Mutations", "Cluster ID"))
+  
+  result_table <- datatable(
+    clusters, 
+    class = 'cell-border stripe', 
+    options = list(
+      dom = 'lftp', 
+      lengthMenu = c(5, 10, 20, 50),
+      pageLength = 5,
+      searchHighlight = TRUE,
+      autoWidth= TRUE,
+      columnDefs = list(list(width = 350, targets = c(7))),
+      initComplete = JS(
+      "function(settings, json) {",
+      "$(this.api().table().header()).css({'background-color': '#000', 'color': '#fff'});",
+      "}")
+    )
+  )  
+  
+  return(result_table)
+}
+```
+
+```{r functions lollipop, include=FALSE}
+make_lollipop <- function(table, color){
+  lineage <- c()
+  for(i in table$ID){
+    new_lineage <- samples[samples$ID == i, "LINEAGE"]
+    lineage <- c(lineage, new_lineage[[1]])
+  }
+  
+  lineage_df <- table
+  lineage_df$lineage <- lineage
+  lineage_df$group <- "All Sequences"
+  lineage_unique <- unique(lineage)
+  lineage_len <- length(unique(lineage))
+  
+  df_list <- list(lineage_df)
+  for (i in lineage_unique){
+    new_df <- subset(lineage_df, lineage == i)
+    new_df$group <- i
+    df_list <- c(df_list, list(new_df))
+  }
+  
+  groups <- c()
+  data_list <- list()
+  for (df in df_list){
+    mut_freq <- rep(0, spike_len)
+    mut_list <- vector(mode = "character", length = spike_len)
+    mut_list_unique <- vector(mode = "character", length = spike_len)
+    mut_list_unique_len <- vector(mode = "integer", length = spike_len)
+    for (i in df$Mutations){
+      mutations <- str_split_1(i, ",")
+      for (j in mutations) {
+        ind <- as.integer(str_sub(j, 2, -2))
+        mut_freq[ind] <- mut_freq[ind] + 1
+        mut_list[ind] <- paste(j, mut_list[ind], sep=" ")
+      }
+    }
+    
+    pos <- 1
+    for (i in mut_list){
+      split <- str_split_1(i, " ")
+      p <- 1
+      for (k in split){
+        if (grepl("\\*", k) == TRUE){
+          split[p] <- paste("\\", k, sep = "")
+          print(split[k])
+        }
+        p <- p + 1
+      }
+      unique_mut <- stri_unique(split)
+      for (j in unique_mut[-length(unique_mut)]){
+        count <- str_count(i, j)
+        mut_list_unique[pos] <- paste(mut_list_unique[pos], "<br>", toString(count), j)
+        mut_list_unique_len[pos] <- mut_list_unique_len[pos] + 1
+      }
+      pos <- pos + 1
+    }
+    
+    data_temp <- data.frame(x = seq(1, spike_len), y = mut_freq, list = mut_list_unique, list_len = mut_list_unique_len, group = df$group[1])
+    groups <- c(groups, df$group[1])
+    data_list <- c(data_list, list(data_temp))
+  }
+  
+  all_false <- rep(FALSE, length(groups)*2)
+  button_list <- list()
+  for (i in 1:length(groups)) {
+    visibility_state <- all_false
+    visibility_state[(2 * i - 1):(i + i)] <- TRUE
+    button_list[[i]] <- list(
+      label = groups[i],
+      method = "update",
+      args = list(list(visible = visibility_state), list(title = groups[i]))
+    )
+  }
+  
+  p <- ggplot() +
+    theme_light() +
+    theme(
+      panel.grid.major.x = element_blank(),
+      panel.border = element_blank(),
+      axis.ticks.x = element_blank()
+    ) +
+    xlab("Amino Acid Position") +
+    ylab("Number of samples") +
+    xlim(c(0,spike_len))
+  
+  for (i in 1:length(groups)) {
+    d <- data_list[[i]][which(data_list[[i]]$y > 0),]
+    row.names(d) <- seq(nrow(d))
+    p <- p + 
+      geom_segment(data = d, aes(x=x, xend=x, y=0, yend=y), color="darkgrey") +
+      geom_point(
+        data = d, 
+        aes(
+          x=x, y=y, 
+          text=paste0(
+          "<b>AA Position: </b>", x, 
+          "<br><b># of samples: </b>", y, 
+          "<br><b># of substitutions: </b>", list_len, list
+          )
+        ),
+        color=color,
+        size=3
+      )
+  }
+  
+  lollipop <- ggplotly(p, tooltip = c("text")) %>% layout(
+    updatemenus=list(
+      list(
+        active=0, 
+        x=0, 
+        y=1.1,
+        xanchor="left",
+        yanchor="bottom",
+        buttons=button_list
+      )
+    )
+  )
+  
+  return(lollipop)
+}
+```
+
+```{r functions heatmap, include=FALSE}
+make_heatmap <- function(metadata, table){
+  df_mutations_filtered <- merge(metadata, table, by="ID") %>%
+    select(SAMPLING_DATE.x, Mutations) %>%
+    unnest(Mutations) 
+    
+  df_week <- merge(metadata, table, by="ID") %>% 
+    select(SAMPLING_DATE.x) %>%
+    group_by(SAMPLING_DATE.x) %>%
+    summarize(count = n())
+  
+  df_mutations_merged_all <- merge(df_mutations_filtered, df_week, by="SAMPLING_DATE.x") %>%
+    select(Mutations, SAMPLING_DATE.x, count)
+  
+  df_mutations_merged <- df_mutations_merged_all %>%
+    drop_na(SAMPLING_DATE.x)
+  
+  if (nrow(df_mutations_merged_all) - nrow(df_mutations_merged) != 0){
+    df_na <- df_week %>% drop_na(SAMPLING_DATE.x)
+    cat(paste0(sum(df_week$count) - sum(df_na$count), " Sequences were dropped from the heatmap due to the wrong format of the Sampling Date!"))
+  }
+  
+  names(df_mutations_merged)[1] <- "aa_profile"
+  names(df_mutations_merged)[3] <- "count_total"
+  
+  df_mutations_grouped <- suppressMessages(df_mutations_merged %>% 
+    group_by(SAMPLING_DATE.x, count_total, aa_profile) %>% 
+    summarize(freq = n()) %>%
+    mutate(perc = round(freq/count_total*100, digits = 2)) %>% 
+    ungroup())
+  
+  pos <- c()
+  for (i in df_mutations_grouped["aa_profile"]){
+    # get position of mutation
+    ind <- as.integer(str_sub(i, 2, -2))
+    pos <- c(pos, ind)
+  }
+  df_mutations_grouped$position <- pos
+  
+  df_mutations_sorted <- df_mutations_grouped %>%
+    arrange(-position)
+  
+  plot.data <- df_mutations_sorted %>% 
+    select(SAMPLING_DATE.x, aa_profile, freq, perc)
+  
+  year_weeks <- as.Date(paste0(plot.data$SAMPLING_DATE.x, "-1"), format="%Y-%U-%u")
+  week_sequence <- seq(min(year_weeks), max(year_weeks), by = "week")
+  full_seq <- format(week_sequence, "%Y-%U")
+  full_seq <- full_seq[full_seq %in% unique(plot.data$SAMPLING_DATE.x)]
+  missing <- setdiff(full_seq, plot.data$SAMPLING_DATE.x)
+  missing <- missing[!grepl("-00$", missing)]
+  
+  if (length(missing) != 0){
+    for (i in 1:length(missing)){
+      new_row <- list(SAMPLING_DATE.x = missing[[i]], aa_profile = NA, freq = NA, perc = NA)
+      plot.data <- rbind(plot.data, new_row)
+    }
+  }
+  
+  aa_tick <- unique(plot.data$aa_profile)
+  date_tick <- unique(plot.data$SAMPLING_DATE.x)
+  
+  heatmap <- plot_ly(
+    plot.data, x=~SAMPLING_DATE.x, y=~aa_profile, z=~perc, 
+    reversescale=TRUE, 
+    xgap=1.5, ygap=1.5, 
+    type="heatmap", 
+    colorbar=list(
+      title=('<b>Proportion</b>')), 
+      hoverinfo='text', 
+      text=~paste0("<b>Week: </b>", .data$SAMPLING_DATE.x, "<br><b>Substitution: </b>", .data$aa_profile, "<br><b>% of samples: </b>", .data$perc)
+    ) %>% 
+    layout(
+      plot_bgcolor="#F8F8F8", 
+      xaxis=list(nticks=length(date_tick), title='<b>Week (Collection Date)</b>', showgrid=FALSE),
+      yaxis=list(nticks=length(aa_tick), title="<b>Substitutions</b>", showgrid=FALSE, categoryorder="trace"),
+      legend=list(orientation='v', xanchor="right", yanchor="top")
+    ) 
+  
+  df_mutations_bar <- merge(metadata, table, by="ID") %>%
+    select(SAMPLING_DATE.x, Mutations)
+  
+  bar.data <- df_mutations_bar %>%
+    select(SAMPLING_DATE.x) %>%
+    group_by(SAMPLING_DATE.x) %>%
+    summarize(count = n())
+  
+  if (length(missing) != 0){
+    for (i in 1:length(missing)){
+      new_row <- list(SAMPLING_DATE.x = missing[[i]], count = 0)
+      bar.data <- rbind(bar.data, new_row)
+    }
+  }
+  
+  bar.data <- bar.data %>% 
+    arrange(SAMPLING_DATE.x)
+  
+  barplot <- plot_ly(
+    bar.data, x=~SAMPLING_DATE.x, y=~count, 
+    type = "bar",
+    marker = list(color = "grey"),
+    hoverinfo='text',
+    hovertext=~paste0("<b>Week: </b>", .data$SAMPLING_DATE.x, "<br><b># of samples: </b>", .data$count)
+  ) %>%
+    layout(
+      xaxis=list(nticks=length(date_tick), title='<b>Week (Collection Date)</b>', showgrid=FALSE),
+      yaxis=list(title="<b>Number of <br> sequences</b>", showgrid=FALSE)
+    )
+  
+  heatmap <- subplot(
+    heatmap, barplot, 
+    nrows = 2, heights = c(0.8, 0.2), 
+    shareX = TRUE, titleY = TRUE
+  )
+  
+  return(heatmap)
+}
+```
+
+```{r functions table, include=FALSE}
+prepare_table <- function(table){
+  for (i in table["ID"]) {
+    new <- str_remove_all(i, "%space%")
+    table["ID"][table["ID"] == i] <- new
+  }
+  
+  names(table)[7] <- "Mutations"
+  names(table)[8] <- "Deletions"
+
+  table_copy <- table
+  
+  for (i in table["Mutations"]){
+    new <- str_split(i, ",")
+    table["Mutations"][table["Mutations"] == i] <- new
+  }
+  return(list(table = table, table_copy = table_copy))
+}
+  
+make_table_samples <- function(table_copy){
+  for (i in table_copy["Mutations"]){
+    new <- gsub(",([[:alpha:]])", ", \\1", i)
+    table_copy["Mutations"][table_copy["Mutations"] == i] <- new
+  }
+  
+  names(table_copy)[7] <- "Substitutions"
+
+  names(table_copy)[4] <- "MOC"
+  names(table_copy)[5] <- "ROI"
+  names(table_copy)[6] <- "PM"
+  
+  col_order <- c("ID", "LINEAGE", "MOC", "ROI", "PM", "Substitutions", "Deletions")
+  table_copy <- table_copy[, col_order]
+  
+  result_table <- datatable(
+    table_copy, 
+    class = 'cell-border stripe', 
+    options = list(
+      dom = 'lftp', 
+      lengthMenu = c(5, 10, 20, 50),
+      pageLength = 5,
+      searchHighlight = TRUE,
+      autoWidth= TRUE,
+      columnDefs = list(list(width = 350, targets = c(6,7))),
+      initComplete = JS(
+      "function(settings, json) {",
+      "$(this.api().table().header()).css({'background-color': '#000', 'color': '#fff'});",
+      "}")
+    )
+  )  
+  
+  return(result_table)
+}
+```
+
+```{r data, include=FALSE}
+if (file_ext(params$input) == 'fasta'){
+  input <- read.fasta(params$input)
+} else {
+  input <- read.delim(params$input, sep = ",")
+}
+
+clusters <- read.delim(params$clusters, sep=',')
+samples <- read.delim(params$alert_samples, sep = ',')
+
+moc <- read.delim(params$moc)
+
+if(params$metadata != ''){
+  metadata <- read.delim(params$metadata)
+}
+```
+
+```{r data groups, include=FALSE}
+pink_table <- filter(samples, alert_level == 'pink') %>%
+  mutate(
+    s_moc = s_moc_M + s_moc_D + s_moc_I, 
+    s_roi = s_roi_M + s_roi_D + s_roi_I, 
+    s_pm = s_pm_M + s_pm_D + s_pm_I
+  ) %>%
+  select(
+    ID, SAMPLING_DATE, LINEAGE, s_moc, s_roi, s_pm, 
+    ListMutationsSelected_M, ListMutationsSelected_D,
+    nMutationsTotal_M, nMutationsTotal_D, nMutationsTotal_I 
+  )
+
+red_table <- filter(samples, alert_level == 'red') %>%
+  mutate(
+    s_moc = s_moc_M + s_moc_D + s_moc_I, 
+    s_roi = s_roi_M + s_roi_D + s_roi_I, 
+    s_pm = s_pm_M + s_pm_D + s_pm_I
+  ) %>%
+  select(
+    ID, SAMPLING_DATE, LINEAGE, s_moc, s_roi, s_pm, 
+    ListMutationsSelected_M, ListMutationsSelected_D,
+    nMutationsTotal_M, nMutationsTotal_D, nMutationsTotal_I
+  )
+
+orange_table <- filter(samples, alert_level == 'orange') %>%
+  mutate(
+    s_moc = s_moc_M + s_moc_D + s_moc_I, 
+    s_roi = s_roi_M + s_roi_D + s_roi_I, 
+    s_pm = s_pm_M + s_pm_D + s_pm_I
+  ) %>%
+  select(
+    ID, SAMPLING_DATE, LINEAGE, s_moc, s_roi, s_pm, 
+    ListMutationsSelected_M, ListMutationsSelected_D,
+    nMutationsTotal_M, nMutationsTotal_D, nMutationsTotal_I
+  )
+
+grey_table <- filter(samples, alert_level == 'grey') %>%
+  mutate(
+    s_moc = s_moc_M + s_moc_D + s_moc_I, 
+    s_roi = s_roi_M + s_roi_D + s_roi_I, 
+    s_pm = s_pm_M + s_pm_D + s_pm_I
+  ) %>%
+  select(
+    ID, SAMPLING_DATE, LINEAGE, s_moc, s_roi, s_pm, 
+    ListMutationsSelected_M, ListMutationsSelected_D,
+    nMutationsTotal_M, nMutationsTotal_D, nMutationsTotal_I
+  )
+```
+
+
+
+## Overview
+
+The report was generated for the following input file:
+
+```{r input, echo=FALSE, message=FALSE, warning=FALSE}
+cat(paste0('> ', params$input))
+```
+
+```{r seq total, echo=FALSE, message=FALSE, warning=FALSE}
+if (file_ext(params$input) == 'fasta'){
+  cat(paste0('> Sequences total in fasta file: ', length(input)))
+  cat(paste0('> Sequences aligned: ', nrow(samples)))
+  cat(paste0('> Sequences skipped: ', length(input) - nrow(samples)))
+} else {
+  cat(paste0('> Sequences total in input file: ', nrow(input)))
+}
+```
+
+```{r metadata, echo=FALSE, message=FALSE, warning=FALSE}
+if (params$metadata != ""){
+  cat(paste0('> Metadata was given for the following amount of sequences: ', nrow(metadata)))
+} else {
+  cat("No Metadata file was given.")
+}
+```
+
+### Sequences per Group
+
+```{r bar plot,  out.width="1000px", echo=FALSE, message=FALSE, warning=FALSE}
+alert_colors <- c(grey = "lightgrey", orange = "orange", red = "red", pink = "deeppink")
+
+if (params$metadata == ""){
+  df_bar <- samples %>%
+    group_by(alert_level) %>%
+    summarize(count = n())
+  
+  if (nrow(df_bar) != 5){
+    all_alert_levels <- c('grey', 'orange', 'red', 'pink')
+    missing_alert_levels <- setdiff(all_alert_levels, df_bar$alert_level)
+    for (level in missing_alert_levels){
+      new_row <- data.frame(alert_level = level, count = 0)
+      df_bar <- rbind(df_bar, new_row)
+    }
+  }
+  
+  order_levels <- c('grey', 'orange', 'red', 'pink')
+  df_bar$alert_level <- factor(df_bar$alert_level, levels = order_levels)
+  count_sum <- sum(df_bar$count)
+  
+  plot_ly(
+    df_bar, x = ~0, y = ~count,
+    type = 'bar', 
+    color = ~alert_level,
+    colors = alert_colors,
+    hoverinfo = 'text',
+    hovertext = ~paste0("<b>Group: </b>", alert_level, "<br><b># of sequences: </b>", count, "<br><b>Percentage: </b>", round(count/count_sum*100, digits = 2), "%")
+  ) %>% 
+    layout(
+      xaxis = list(title = 'Alert Level'),
+      yaxis = list(title = 'Count'), 
+      barmode = 'stack'
+    )
+} else {
+  names_all <- vector(mode = "character", length = length(samples$ID))
+  df_names_all <- cbind(samples, names_all)
+  
+  df_week_all <- merge(df_names_all, metadata, by="ID", all.x = TRUE) %>% 
+    select(alert_level, ID, SAMPLING_DATE.x)
+    
+  df_bar <- df_week_all %>%
+    group_by(alert_level, SAMPLING_DATE.x) %>%
+    summarize(count = n())
+  
+  order_levels <- c('grey', 'orange', 'red', 'pink')
+  df_bar$alert_level <- factor(df_bar$alert_level, levels = order_levels)
+  
+  plot_ly(
+    df_bar, x = ~SAMPLING_DATE.x, y = ~count, 
+    type = 'bar', 
+    color = ~alert_level,
+    colors = alert_colors,
+    hoverinfo='text',
+    hovertext=~paste0("<b>Collection Date: </b>", SAMPLING_DATE.x, "<br><b>Group: </b>", alert_level, "<br><b># of sequences: </b>", count)
+  ) %>% 
+    layout(
+      xaxis = list(title = 'Collection Date'), 
+      yaxis = list(title = 'Count'), 
+      barmode = 'stack'
+    )
+}
+```
+
+
+
+
+## Group <span style="color: deeppink;">PINK</span> {.tabset .tabset-fade}
+#### *Sequences that are a VOC / VOI / VUM with 1 or more MOC substitutions or 1 or more MOC deletions*
+
+```{r pink data, echo=FALSE, message=FALSE, warning=FALSE}
+result <- prepare_table(pink_table)
+pink_table <- result$table
+pink_table_copy <- result$table_copy
+
+cat(paste0('> Sequences in Group PINK: ', nrow(pink_table)))
+
+if (any(pink_table$LINEAGE %in% undefined)){
+  cat(paste0("\nINFO: There are ", sum(pink_table$LINEAGE %in% undefined), " sequences with no assigned lineage in the category PINK. For more information, please check the tab Samples or the drop down menu of the Lollipop plot for Unassinged/NONE/Other."))
+}
+```
+
+### Clusters
+
+```{r pink clusters, echo=FALSE, message=FALSE, warning=FALSE}
+if ('pink' %in% clusters$alert_level){
+  pink_clusters <- make_table_clusters(clusters, 'pink')
+  pink_clusters
+} else {
+  cat("No clusters in Group PINK")
+}
+```
+
+
+### Lollipop Plot
+
+```{r pink lollipop, out.width="1000px", echo=FALSE, message=FALSE, warning=FALSE}
+if (nrow(pink_table) == 0){
+  cat("No sequences in Group PINK")
+} else {
+  pink_lollipop <- make_lollipop(pink_table_copy, "deeppink")
+  pink_lollipop
+}
+```
+
+### Heatmap
+
+```{r pink heatmap, out.width="1000px", out.height="800px", echo=FALSE, message=FALSE, warning=FALSE}
+if (nrow(pink_table) == 0){
+  cat("No sequences in Group PINK")
+} else if (params$metadata == ""){
+  cat("The heatmap shows the frequency of mutations over time.")
+  cat("No metadata file with collection dates was given, so no heatmap was generated.")
+} else if (any(pink_table$ID %in% metadata$ID) == FALSE){
+  cat("No metadata given for the sequences of Group PINK.")
+} else {
+  pink_heatmap <- make_heatmap(metadata, pink_table)
+  pink_heatmap
+}
+```
+
+### Samples
+
+```{r pink table, echo=FALSE, message=FALSE, warning=FALSE}
+if (nrow(pink_table) == 0){
+  cat("No sequences in Group PINK")
+} else {
+  pink_result_table <- make_table_samples(pink_table_copy)
+  pink_result_table
+}
+```
+
+
+## Group <span style="color: red;">RED</span> {.tabset .tabset-fade}
+#### *Sequences with 3 or more MOC substitutions and 2 or more MOC deletions and at least 1 PM substitution that are not PINK*
+#### *Sequences with 2 or more MOC substitutions and 1 or more MOC deletions and 4 or more PM substitutions that are not PINK*
+
+```{r red data, echo=FALSE, message=FALSE, warning=FALSE}
+result <- prepare_table(red_table)
+red_table <- result$table
+red_table_copy <- result$table_copy
+
+cat(paste0('> Sequences in Group RED: ', nrow(red_table)))
+
+if (any(red_table$LINEAGE %in% undefined)){
+  cat(paste0("\nINFO: There are ", sum(red_table$LINEAGE %in% undefined), " sequences with no assigned lineage in the category RED. For more information, please check the tab Samples or the drop down menu of the Lollipop plot for Unassinged/NONE/Other."))
+}
+```
+
+### Clusters
+
+```{r red clusters, echo=FALSE, message=FALSE, warning=FALSE}
+if ('red' %in% clusters$alert_level){
+  red_clusters <- make_table_clusters(clusters, 'red')
+  red_clusters
+} else {
+  cat("No clusters in Group RED")
+}
+```
+
+### Lollipop Plot
+
+```{r red lollipop, out.width="1000px", echo=FALSE, message=FALSE, warning=FALSE}
+if (nrow(red_table) == 0){
+  cat("No sequences in Group RED")
+} else {
+  red_lollipop <- make_lollipop(red_table_copy, "red")
+  red_lollipop
+}
+```
+
+### Heatmap
+
+```{r red heatmap, out.width="1000px", out.height="800px", echo=FALSE, message=FALSE, warning=FALSE}
+if (nrow(red_table) == 0){
+  cat("No sequences in Group RED")
+} else if (params$metadata == ""){
+  cat("The heatmap shows the frequency of mutations over time.")
+  cat("No metadata file with sampling dates was given, so no heatmap was generated.")
+} else if (any(red_table$ID %in% metadata$ID) == FALSE){
+  cat("No metadata given for the sequences of Group RED.")
+} else {
+  red_heatmap <- make_heatmap(metadata, red_table)
+  red_heatmap
+}
+```
+
+### Samples
+
+```{r red table, echo=FALSE, message=FALSE, warning=FALSE}
+if (nrow(red_table) == 0){
+  cat("No sequences in Group RED")
+} else {
+  red_result_table <- make_table_samples(red_table_copy)
+  red_result_table
+}
+```
+
+
+## Group <span style="color: orange;">ORANGE</span> {.tabset .tabset-fade}
+#### *Sequences with 2 or more MOC substitutions and 1 or more MOC deletions and 2 or more PM substitutions*
+
+```{r orange data, echo=FALSE, message=FALSE, warning=FALSE}
+if (params$strict == 'y'){
+  cat("VirusWarn-SC2 runs in strict mode, the ORANGE level is not available.")
+} else {
+  result <- prepare_table(orange_table)
+  orange_table <- result$table
+  orange_table_copy <- result$table_copy
+  
+  cat(paste0('> Sequences in Group ORANGE: ', nrow(orange_table)))
+  
+  if (any(orange_table$LINEAGE %in% undefined)){
+    cat(paste0("\nINFO: There are ", sum(orange_table$LINEAGE %in% undefined), " sequences with no assigned lineage in the category ORANGE. For more information, please check the tab Samples or the drop down menu of the Lollipop plot for Unassinged/NONE/Other."))
+  }
+}
+```
+
+### Clusters
+
+```{r orange clusters, echo=FALSE, message=FALSE, warning=FALSE}
+if (params$strict == 'y'){
+  cat("VirusWarn-SC2 runs in strict mode, the ORANGE level is not available.")
+} else if ('orange' %in% clusters$alert_level){
+  orange_clusters <- make_table_clusters(clusters, 'orange')
+  orange_clusters
+} else {
+  cat("No clusters in Group ORANGE")
+}
+```
+
+### Lollipop Plot
+
+```{r orange lollipop, out.width="1000px", echo=FALSE, message=FALSE, warning=FALSE}
+if (params$strict == 'y'){
+  cat("VirusWarn-SC2 runs in strict mode, the ORANGE level is not available.")
+} else if (nrow(orange_table) == 0){
+  cat("No sequences in Group ORANGE")
+} else {
+  orange_lollipop <- make_lollipop(orange_table_copy, "orange")
+  orange_lollipop
+}
+```
+
+### Heatmap
+
+```{r orange heatmap, out.width="1000px", echo=FALSE, message=FALSE, warning=FALSE}
+if (params$strict == 'y'){
+  cat("VirusWarn-SC2 runs in strict mode, the ORANGE level is not available.")
+} else if (nrow(orange_table) == 0){
+  cat("No sequences in Group ORANGE")
+} else if (params$metadata == ""){
+  cat("The heatmap shows the frequency of mutations over the weeks.")
+  cat("No metadata file with collection dates was given, so no heatmap was generated.")
+} else if (any(orange_table$ID %in% metadata$ID) == FALSE){
+  cat("No metadata given for the sequences of Group ORANGE.")
+} else {
+  orange_heatmap <- make_heatmap(metadata, orange_table)
+  orange_heatmap
+}
+```
+
+### Samples
+
+```{r orange table, echo=FALSE, message=FALSE, warning=FALSE}
+if (params$strict == 'y'){
+  cat("FluWarnSystem runs in strict mode, the ORANGE level is not available.")
+} else if (nrow(orange_table) == 0){
+  cat("No sequences in Group ORANGE")
+} else {
+  orange_result_table <- make_table_samples(orange_table_copy)
+  orange_result_table
+}
+```
+
+
+## Group <span style="color: lightgrey;">GREY</span>
+
+```{r grey data, echo=FALSE, message=FALSE, warning=FALSE}
+result <- prepare_table(grey_table)
+grey_table <- result$table
+grey_table_copy <- result$table_copy
+
+cat(paste0('> Sequences in Group GREY: ', nrow(grey_table)))
+
+if (any(grey_table$LINEAGE %in% undefined)){
+  cat(paste0("\nINFO: There are ", sum(grey_table$LINEAGE %in% undefined), " sequences with no assigned lineage in the category GREY. For more information, please check the tab Samples or the drop down menu of the Lollipop plot for Unassinged/NONE/Other."))
+}
+```
+
+```{r grey table, echo=FALSE, message=FALSE, warning=FALSE}
+if (nrow(grey_table) == 0){
+  cat("No sequences in Group GREY")
+} else {
+  grey_result_table <- make_table_samples(grey_table_copy)
+  grey_result_table
+}
+```
+
+
+
+## Data Summary
+
+The following file versions were used to generate the report:
+
+Antibody Escape Score `escape_data_bloom_lab.csv`: 2021-10-27
+
+Positive Selection Score `sergei_extracted.2021-05-17.csv`: 2021-05-17
+
+```{r db version, echo=FALSE, message=FALSE, warning=FALSE}
+if (params$data == 2021){
+  cat("Lineage and sublineage relationship `lineage.all.tsv`: 2022-06-29\n")
+  cat("ECDC assigned variants `ECDC_assigned_variants.csv`: 2022-06-29\n")
+  cat("SARS-CoV-2 mutation information `table_cov2_mutations_annotation.tsv`: 2022-06-29\n")
+} else if (params$data == 2022){
+  cat("Lineage and sublineage relationship `lineage.all.tsv`: 2024-09-30\n")
+  cat("ECDC assigned variants `ECDC_assigned_variants.csv`: 2024-09-30\n")
+  cat("SARS-CoV-2 mutation information `table_cov2_mutations_annotation.tsv`: 2024-09-30\n")
+} else {
+  cat("Lineage and sublineage relationship `lineage.all.tsv`: Personalized file\n")
+  cat("WHO assigned variants `WHO_assigned_variants.csv`: Personalized file\n")
+  cat("SARS-CoV-2 mutation information `table_cov2_mutations_annotation.tsv`: Personalized file\n")
+}
+```
+
+
+### Reference sequence
+
+All results of VirusWarn-SC2 reports are calculated with the reference sequence **Wuhan-Hu-1 NC_045512.2**. 
+
+
+<a id="item-moc"></a>
+
+### MOC table
+
+The following table shows the list of the Mutations of Concern that were used to generate the report.
+
+```{r moc, echo=FALSE, message=FALSE, warning=FALSE}
+moc_table <- moc %>% filter(gene == "S", type == "MutationOfConcern") %>%
+  select(-nucleotide, -type) %>%
+  mutate(gene = "SPIKE") %>%
+  mutate(comments = paste(ID, comment, sep = ", ")) %>%
+  select(-ID, -comment)
+
+datatable(
+  moc_table, 
+  class = 'cell-border stripe', 
+  options = list(
+    dom = 'lftp', 
+    lengthMenu = c(5, 10, 20, 50), 
+    pageLength = 10,
+    searchHighlight = TRUE,
+    initComplete = JS(
+    "function(settings, json) {",
+    "$(this.api().table().header()).css({'background-color': '#000', 'color': '#fff'});",
+    "}")
+  )
+)
+```
+
+
+<a id="item-roi"></a>
+
+### ROI table
+
+The following table shows the list of Regions of Interest that were used to generate the report.
+
+```{r roi, echo=FALSE, message=FALSE, warning=FALSE}
+roi_table <- data.frame(
+  gene = "SPIKE",
+  nt_start = c(21602,21980,22295,22760),
+  nt_end = c(21622,22036,22354,23065),
+  aa_start = c(14,140,245,400),
+  aa_end = c(220,158,264,501),
+  func = "N-terminal domain, Antibody epitope"
+)
+
+datatable(
+  roi_table, 
+  class = 'cell-border stripe', 
+  options = list(
+    dom = 'lftp', 
+    lengthMenu = c(5, 10, 20, 50),
+    pageLength = 10,
+    searchHighlight = TRUE,
+    initComplete = JS(
+    "function(settings, json) {",
+    "$(this.api().table().header()).css({'background-color': '#000', 'color': '#fff'});",
+    "}")
+  )
+)
+```
+
+**This report was generated with VirusWarn-SC2 `r params$version`.**

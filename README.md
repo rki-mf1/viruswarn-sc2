@@ -175,9 +175,9 @@ metadata                 The path to a metadate file for the sequences.
                          [ default: '' ]
 data                     Specify the year from which the information should be used for
                          the ranking. The options are 2021, 2022 and 2025.
-                         Alternatively, a path to a personal dataset can be entered. Please make 
-                         sure a table_cov2_mutations_annotation.tsv, assigned_variants.csv and 
-                         lineage.all.tsv are present.
+                         Alternatively, a path to a personal dataset can be entered. Please 
+                         make  sure a table_cov2_mutations_annotation.tsv, 
+                         assigned_variants.csv and lineage.all.tsv are present.
                          [ default: 2022 ]
 psl                      RECOMMENDED FOR FAST PROCESSING! Run process with pblat alignment.
                          [ default: false ]

@@ -6,7 +6,8 @@ nextflow.enable.dsl = 2
 if (params.help) { exit 0, helpMSG() }
 
 // Parameters sanity checking
-Set valid_params = ['cores', 'max_cores', 'memory', 'help', 'profile', 'update_data',
+Set valid_params = ['cores', 'max_cores', 'memory', 
+                    'version', 'help', 'profile', 'update_data',
                     'input', 'metadata', 'data', 'psl', 'covsonar', 'strict',
                     'output', 'preprocess_dir', 'vocal_dir', 
                     'annot_dir', 'report_dir', 'runinfo_dir',
@@ -52,6 +53,8 @@ workflow {
 
     input = Channel.fromPath( file("${params.input}", checkIfExists: true) )
 
+    rmd = Channel.fromPath( file("bin/report.Rmd", checkIfExists: true) )
+
     if (params.data == 2022) {
         log.info"INFO: VirusWarn-SC2 uses mutation, lineage and VOC/VOI/VUM information from November 2022"
         mutation_table = Channel.fromPath( file("data/2022-11/table_cov2_mutations_annotation.tsv", checkIfExists: true) )
@@ -83,16 +86,9 @@ workflow {
 
     bloom = Channel.fromPath( file("data/escape_data_bloom_lab.csv", checkIfExists: true) )
 
-    vocal_version = Channel.fromPath( file(".version", checkIfExists: true) )
-    db_version = Channel.fromPath( file("data/.db_version", checkIfExists: true) )
-
-    email = Channel.fromPath( file("templates/email.html") )
-    email_sum = Channel.fromPath( file("templates/email.sum.html") )
-
     RUN ( 
         ref_nt, input, mutation_table, metadata,
-        variants, bloom, lineages, 
-        vocal_version, db_version, email, email_sum 
+        variants, bloom, lineages, rmd
     )
 
 }

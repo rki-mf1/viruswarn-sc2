@@ -14,13 +14,10 @@ workflow RUN {
         variants
         bloom
         lineages
-        vocal_version
-        db_version
-        email
-        email_sum
+        rmd
 
     main:
-        if (metadata != ''){
+        if (metadata != '' || params.covsonar){
             PREPROCESS ( metadata )
         }
 
@@ -36,12 +33,12 @@ workflow RUN {
             ANNOTATION ( VOCAL.out.variant_table, mutation_table )
         }
 
-        meta = (metadata != '') ? PREPROCESS.out.metadata : metadata
+        meta = (metadata != '' || params.covsonar) ? PREPROCESS.out.metadata : metadata
         annot = (params.covsonar) ? COVSONAR.out.variants_with_phenotypes : ANNOTATION.out.variants_with_phenotypes 
 
         REPORT ( 
-            annot, variants, bloom, lineages, 
-            vocal_version, db_version, email, email_sum, meta
+            annot, variants, bloom, lineages,
+            rmd, input, mutation_table, meta
         )
 
     emit:

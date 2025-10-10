@@ -8,16 +8,15 @@ process REPORT {
         path ecdc
         path bloom
         path lineages
-        path vocal_version
-        path db_version
-        val email
-        val email_sum
+        path rmd
+        path input
+        path mutation_table
         val metadata
 
     output:
         path "vocal-alerts-samples-all.csv",                emit: alerts_samples
         path "vocal-alerts-clusters-summaries-all.csv",     emit: alerts_clusters
-        path "vocal-report.html",                           emit: report
+        path "viruswarnsc2-report.html",                    emit: report
 
     script:
     """
@@ -36,21 +35,25 @@ process REPORT {
     
     echo "Building HTML report..."
 
-    Reporter.py  \
-        -s "vocal-alerts-samples-all.csv" \
-        -c "vocal-alerts-clusters-summaries-all.csv" \
-        -v ${vocal_version} \
-        -d ${db_version} \
-        -e ${ecdc} \
-        -m ${email} \
-        -n ${email_sum} \
-        -o "vocal-report.html"
+    Rscript --vanilla -e \
+        "rmarkdown::render(input = \'${rmd}\', \\
+        output_file = \'viruswarnsc2-report.html\', \\
+        params = list(
+            input = \'${input}\', \\
+            metadata = \'${metadata}\', \\
+            clusters = \'vocal-alerts-clusters-summaries-all.csv\', \\
+            alert_samples = \'vocal-alerts-samples-all.csv\', \\
+            moc = \'${mutation_table}\', \\
+            strict = \'${params.strict}\', \\
+            data = \'${params.data}\', \\
+            version = \'${params.version}\')
+        )"
     """
 
     stub:
     """
     touch vocal-alerts-samples-all.csv 
     touch vocal-alerts-clusters-summaries-all.csv 
-    touch vocal-report.html 
+    touch viruswarnsc2-report.html 
     """
 }
