@@ -24,16 +24,31 @@ nextflow run rki-mf1/viruswarn-sc2 -r <version> \
 
 ## Screenshots
 
-As GitHub does not show HTML files, you can find also some screenshots of the reports in the subfolder [`screenshots`](screenshots/).
+As GitHub does not show HTML files, you can find also some screenshots of the reports in the subfolder [`screenshots`](screenshots/). 
 
-You can find the report overview ...
+All of the plots in the report are interactive so it is definitely worth it to download the report or build one yourself to check out everything!
+The example screenshots are taken from the covSonar report, that you can easily reproduce with the command above.
 
-![Overview (covSonar example report)](screenshots/overview.png)
+You can find the report overview with the barplot that shows how many samples from each week are placed in which level...
 
-... as well as the cluster summary from `example-report_covsonar.html` ...
+![Overview](screenshots/overview.png)
 
-![Cluster summary (covSonar example report)](screenshots/cluster_summary.png)
+... the searchable table for all clusters grouped by VirusWarn of the level ...
 
-... and the sample summary from `example-report_fasta.html`.
+![Clusters - orange level](screenshots/orange_clusters.png)
 
-![Sample summary (fasta example report)](screenshots/sample_summary.png)
+... the lollipop plot from the level showing how many mutations occur at which position of the HA segment ...
+
+![Lollipop plot - orange level](screenshots/orange_lollipop.png)
+
+... the heatmap of the level that shows if substitutions accumulated over the weeks ...
+
+![Heatmap - orange level](screenshots/orange_heatmap.png)
+
+... the searchable table for all samples of the level ...
+
+![Samples - orange level](screenshots/orange_samples.png)
+
+... and the overview of the data used to generate the results.
+
+![Used data for computation of the results](screenshots/data.png)
